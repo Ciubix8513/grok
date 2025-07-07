@@ -18,7 +18,7 @@ fn generate_meow() -> String {
     .lines()
     .collect::<Vec<_>>();
 
-    let mut o = "".to_string();
+    let mut o = String::new();
 
     for _ in 0..num_meows {
         o += meows[rng.random_range(0..meows.len())];
@@ -34,6 +34,7 @@ async fn main() {
     let polling_period = env.get("POLLING_INTERVAL").unwrap().parse().unwrap();
     let token = env.get("MISKEY_TOKEN").unwrap().clone();
     let instance = env.get("INSTANCE").unwrap().clone();
+    println!("Got env vars");
 
     let miskey_client = miskey_client::Client::new(token.clone(), instance.clone());
     let masto_client = Client::new(token, instance);
@@ -42,11 +43,15 @@ async fn main() {
     let _ = masto_client.me().await.unwrap();
     let _ = miskey_client.me().await.unwrap();
 
+    println!("Connected to miskey and mastodon");
+
     loop {
+        println!("Checking notifications");
         //Get notifications
         let notifications = masto_client.get_notifications().await;
         //If got some notifications immediately flush them
         if !notifications.is_empty() {
+            println!("Clearing notifications");
             miskey_client.flush_notifications().await.unwrap();
         }
 
@@ -58,6 +63,8 @@ async fn main() {
                 (i.account.acct, status.id, status.visibility)
             })
             .collect::<Vec<_>>();
+
+        println!("Replying");
 
         for (username, status_id, visibility) in names {
             let meow = generate_meow();
@@ -71,6 +78,6 @@ async fn main() {
             masto_client.create_post(post).await.unwrap();
         }
 
-        tokio::time::sleep(Duration::from_secs(polling_period)).await
+        tokio::time::sleep(Duration::from_secs(polling_period)).await;
     }
 }
