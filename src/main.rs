@@ -7,7 +7,7 @@ use crate::mastodon_client::{Client, NotificationType, Post};
 pub mod mastodon_client;
 pub mod miskey_client;
 
-fn generate_meow() -> String {
+fn generate_meow() -> (String, u32) {
     let mut rng = rand::rng();
     let num_meows = rng.random_range(1..10);
     let meows = if rng.random_range(1..100) == 42 {
@@ -25,7 +25,7 @@ fn generate_meow() -> String {
         o += " ";
     }
 
-    o.trim_end().into()
+    (o.trim_end().into(), num_meows)
 }
 
 #[tokio::main]
@@ -72,7 +72,22 @@ async fn main() {
         println!("Replying");
 
         for (username, status_id, visibility, mentions) in names {
-            let meow = generate_meow();
+            let mut meow = generate_meow();
+
+            //i sure love sharkey
+            loop {
+                if meow.1 == 1 {
+                    if meow.0.chars().next().unwrap() == ':'
+                        && meow.0.chars().last().unwrap() == ':'
+                    {
+                        println!("regenerating the meow");
+                        meow = generate_meow();
+                        continue;
+                    }
+                }
+                break;
+            }
+
             let mut pings = String::new();
 
             for i in mentions {
@@ -83,16 +98,16 @@ async fn main() {
                 }
                 // https://lunar.place/@luna
                 let binding = i.url.split("https://").collect::<Vec<_>>();
+
                 //lunar.place/@luna
                 let instance = binding.last().unwrap().split("/").next().unwrap();
 
                 pings += &format!("@{}@{instance} ", i.username);
             }
 
-            println!("Pinging {pings}");
-
+            //Check if the meow is just a single emoji
             let post = Post {
-                status: format!("@{username} {pings}{meow}"),
+                status: format!("@{username} {pings}{}", meow.0),
                 in_reply_to_id: Some(status_id),
                 visibility: Some(visibility),
                 ..Default::default()
