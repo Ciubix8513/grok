@@ -60,16 +60,39 @@ async fn main() {
             .filter(|i| i.r#type == NotificationType::mention)
             .map(|i| {
                 let status = i.status.unwrap();
-                (i.account.acct, status.id, status.visibility)
+                (
+                    i.account.acct,
+                    status.id,
+                    status.visibility,
+                    status.mentions,
+                )
             })
             .collect::<Vec<_>>();
 
         println!("Replying");
 
-        for (username, status_id, visibility) in names {
+        for (username, status_id, visibility, mentions) in names {
             let meow = generate_meow();
+            let mut pings = String::new();
+
+            for i in mentions {
+                //Probably don't need this
+                if i.username == "grok" {
+                    println!("Skipped self");
+                    continue;
+                }
+                // https://lunar.place/@luna
+                let binding = i.url.split("https://").collect::<Vec<_>>();
+                //lunar.place/@luna
+                let instance = binding.last().unwrap().split("/").next().unwrap();
+
+                pings += &format!("@{}@{instance} ", i.username);
+            }
+
+            println!("Pinging {pings}");
+
             let post = Post {
-                status: format!("@{username} {meow}"),
+                status: format!("@{username} {pings}{meow}"),
                 in_reply_to_id: Some(status_id),
                 visibility: Some(visibility),
                 ..Default::default()
