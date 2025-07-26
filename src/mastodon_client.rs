@@ -303,7 +303,10 @@ pub struct Status {
     pub language: Option<String>,
     pub text: Option<String>,
     pub edited_at: Option<String>,
-    pub quote: Option<Quote>,
+    // Had to change the quotes to be this bc sharkey is broken?
+    // pub quote: Option<Quote>,
+    pub quote_id: Option<String>,
+    pub quote: Option<Box<Status>>,
     pub favourited: Option<bool>,
     pub reblogged: Option<bool>,
     pub muted: Option<bool>,
