@@ -1,43 +1,121 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 use crate::mastodon_client::{Client, NotificationType, Post};
 
 pub mod mastodon_client;
 pub mod miskey_client;
 
-fn generate_meow() -> (String, u32) {
+fn generate_response(config: &Config) -> (String, u32) {
     let mut rng = rand::rng();
-    let num_meows = rng.random_range(1..10);
-    let meows = if rng.random_range(1..100) == 42 {
-        include_str!(".././fox_noises")
-    } else {
-        include_str!(".././meows")
+
+    for (ind, r) in config.responses.iter().enumerate() {
+        if rng.random_range(0..100) > r.chance && !(ind == config.responses.len() - 1) {
+            //Randomness check did not succeed<F
+            continue;
+        }
+        let num_words = rng.random_range(r.min_words..r.max_words);
+
+        let mut o = String::new();
+
+        for _ in 0..num_words {
+            o += &r.words[rng.random_range(0..r.words.len())];
+            o += " ";
+        }
+
+        return (o.trim_end().into(), num_words);
     }
-    .lines()
-    .collect::<Vec<_>>();
 
-    let mut o = String::new();
+    unreachable!()
+}
+#[derive(Debug, Deserialize, Serialize)]
+struct Response {
+    ///% chance that the bot will reply  with the following words
+    chance: u32,
+    ///Minimum number of words the bot will respond with
+    min_words: u32,
+    ///Maximum number of words the bot will respond with
+    max_words: u32,
+    ///Wether the dictionary contains any emoji
+    contains_emoji: bool,
+    ///Dictionary of words the bot will reply with
+    ///
+    ///Note:
+    ///
+    ///Order matters, the program will try to generate responses in order, so chance percentages
+    ///are a bit skewed. For example if the first response has a chance of 10%, then 2nd has 15%
+    ///and 3rd has 20%, the first one will have a chance of 10% then the 2nd one will have 15% of
+    ///100 - 10%, and if both fail then the last one will be used.
+    words: Vec<String>,
+}
 
-    for _ in 0..num_meows {
-        o += meows[rng.random_range(0..meows.len())];
-        o += " ";
+#[derive(Debug, Deserialize, Serialize)]
+struct Config {
+    ///Instance URL
+    instance: String,
+    ///Api access token
+    token: String,
+    ///How much time to wait before checking notifications again
+    polling_interval: u64,
+    ///Things the bot can respond with
+    responses: Vec<Response>,
+}
+
+fn generate_default_config() -> Config {
+    Config {
+        instance: "https://test.com".into(),
+        token: "API_TOKEN".into(),
+        polling_interval: 10,
+        responses: vec![
+            Response {
+                chance: 10,
+                min_words: 1,
+                max_words: 10,
+                contains_emoji: true,
+                words: vec!["waf".into(), "awfruf".into(), ":neofox_floof:".into()],
+            },
+            Response {
+                chance: 100,
+                min_words: 1,
+                max_words: 10,
+                contains_emoji: false,
+                words: vec!["meow".into(), "mrrp".into()],
+            },
+        ],
     }
-
-    (o.trim_end().into(), num_meows)
 }
 
 #[tokio::main]
 async fn main() {
-    let env = dotenv::vars().collect::<HashMap<_, _>>();
-    let polling_period = env.get("POLLING_INTERVAL").unwrap().parse().unwrap();
-    let token = env.get("MISKEY_TOKEN").unwrap().clone();
-    let instance = env.get("INSTANCE").unwrap().clone();
-    println!("Got env vars");
+    let args = std::env::args().collect::<Vec<_>>();
 
-    let miskey_client = miskey_client::Client::new(token.clone(), instance.clone());
-    let masto_client = Client::new(token, instance);
+    if args.len() > 1 {
+        match args[1].as_str() {
+            "-c" => {
+                let c = generate_default_config();
+                let s = toml::to_string(&c).unwrap();
+
+                std::fs::write("./config.toml", s).unwrap();
+                return;
+            }
+            _ => {
+                println!("Usage: grok [-h|-c]");
+                println!("\t-h displays this menu");
+                println!("\t-c creates default config file");
+                return;
+            }
+        }
+    }
+
+    let str = std::fs::read_to_string("./config.toml").unwrap();
+
+    let config: Config = toml::from_str(&str).unwrap();
+    println!("Parsed confg file");
+
+    let miskey_client = miskey_client::Client::new(config.token.clone(), config.instance.clone());
+    let masto_client = Client::new(config.token.clone(), config.instance.clone());
 
     //Test the clients
     let _ = masto_client.me().await.unwrap();
@@ -72,7 +150,7 @@ async fn main() {
         println!("Replying");
 
         for (username, status_id, visibility, mentions) in names {
-            let mut meow = generate_meow();
+            let mut meow = generate_response(&config);
 
             //i sure love sharkey
             loop {
@@ -81,7 +159,7 @@ async fn main() {
                         && meow.0.chars().last().unwrap() == ':'
                     {
                         println!("regenerating the meow");
-                        meow = generate_meow();
+                        meow = generate_response(&config);
                         continue;
                     }
                 }
@@ -116,6 +194,6 @@ async fn main() {
             masto_client.create_post(post).await.unwrap();
         }
 
-        tokio::time::sleep(Duration::from_secs(polling_period)).await;
+        tokio::time::sleep(Duration::from_secs(config.polling_interval)).await;
     }
 }

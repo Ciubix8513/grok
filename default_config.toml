@@ -1,0 +1,17 @@
+instance = "https://test.com"
+token = "API_TOKEN"
+polling_interval = 10
+
+[[responses]]
+chance = 10
+min_words = 1
+max_words = 10
+contains_emoji = true
+words = ["waf", "awfruf", ":neofox_floof:"]
+
+[[responses]]
+chance = 100
+min_words = 1
+max_words = 10
+contains_emoji = false
+words = ["meow", "mrrp"]
