@@ -147,6 +147,8 @@ fn generate_default_config() -> Config {
 
 #[tokio::main]
 async fn main() {
+    tokio::time::sleep(Duration::from_secs(10)).await;
+
     let args = std::env::args().collect::<Vec<_>>();
 
     if args.len() > 1 {
