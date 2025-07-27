@@ -1,0 +1,25 @@
+instance = "https://test.com"
+token = "API_TOKEN"
+polling_interval = 10
+
+[[responses]]
+chance = 100
+regex = '(@.*)*is this true\?'
+min_words = 1
+max_words = 1
+contains_emoji = true
+words = ["meow !!!", " ‌:neocat_sign_yes:", " ‌:neocat_sign_no:", "nyaa ?", " ‌:neocat_confused:", " ‌:neocat_glare:", " ‌:neocat_woozy:", " ‌:neocat_googly_woozy:"]
+
+[[responses]]
+chance = 10
+min_words = 1
+max_words = 10
+contains_emoji = true
+words = ["waf", "arrf", "awrfaf", ":neofox_floof:", ":fluffy_tail:"]
+
+[[responses]]
+chance = 100
+min_words = 1
+max_words = 10
+contains_emoji = false
+words = ["meow", "mew", "nyaaa", ":3", "mrrp", "mrmeow", ":neocat_floof:", ":neocat_flop:"]
