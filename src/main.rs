@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use rand::Rng;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::mastodon_client::{Client, NotificationType, Post};
@@ -8,14 +9,34 @@ use crate::mastodon_client::{Client, NotificationType, Post};
 pub mod mastodon_client;
 pub mod miskey_client;
 
-fn generate_response(config: &Config) -> (String, u32) {
+fn generate_response(config: &Config, post_text: &Option<String>) -> (String, u32) {
     let mut rng = rand::rng();
 
     for (ind, r) in config.responses.iter().enumerate() {
-        if rng.random_range(0..100) > r.chance && !(ind == config.responses.len() - 1) {
-            //Randomness check did not succeed<F
-            continue;
+        //First check if this is not the last dictionary, and if it is use it regardless of any
+        //other checks
+        if !(ind == config.responses.len() - 1) {
+            //First try to get random
+            if rng.random_range(0..100) > r.chance {
+                //Randomness check did not succeed<F
+                continue;
+            }
+
+            //Check if it matches the regex
+            if let Some(regex) = &r.regex {
+                if let Some(text) = post_text {
+                    let regex = Regex::new(&regex).unwrap();
+
+                    if !regex.is_match(text) {
+                        continue;
+                    }
+                } else {
+                    //There's no post text so it will never match the regex
+                    continue;
+                }
+            }
         }
+
         let num_words = rng.random_range(r.min_words..r.max_words);
 
         let mut o = String::new();
@@ -30,10 +51,13 @@ fn generate_response(config: &Config) -> (String, u32) {
 
     unreachable!()
 }
+
 #[derive(Debug, Deserialize, Serialize)]
 struct Response {
     ///% chance that the bot will reply  with the following words
     chance: u32,
+    ///Checks the post against this regex and uses this dictionary if it matches
+    regex: Option<String>,
     ///Minimum number of words the bot will respond with
     min_words: u32,
     ///Maximum number of words the bot will respond with
@@ -70,6 +94,7 @@ fn generate_default_config() -> Config {
         polling_interval: 10,
         responses: vec![
             Response {
+                regex: None,
                 chance: 10,
                 min_words: 1,
                 max_words: 10,
@@ -77,6 +102,15 @@ fn generate_default_config() -> Config {
                 words: vec!["waf".into(), "awfruf".into(), ":neofox_floof:".into()],
             },
             Response {
+                regex: Some(r"(@.*)*is this true\?".into()),
+                chance: 100,
+                min_words: 1,
+                max_words: 1,
+                contains_emoji: false,
+                words: vec!["yes".into(), "no".into()],
+            },
+            Response {
+                regex: None,
                 chance: 100,
                 min_words: 1,
                 max_words: 10,
@@ -140,6 +174,7 @@ async fn main() {
                 let status = i.status.unwrap();
                 (
                     i.account.acct,
+                    status.text,
                     status.id,
                     status.visibility,
                     status.mentions,
@@ -149,8 +184,8 @@ async fn main() {
 
         println!("Replying");
 
-        for (username, status_id, visibility, mentions) in names {
-            let mut meow = generate_response(&config);
+        for (username, text, status_id, visibility, mentions) in names {
+            let mut meow = generate_response(&config, &text);
 
             //i sure love sharkey
             loop {
@@ -159,7 +194,7 @@ async fn main() {
                         && meow.0.chars().last().unwrap() == ':'
                     {
                         println!("regenerating the meow");
-                        meow = generate_response(&config);
+                        meow = generate_response(&config, &text);
                         continue;
                     }
                 }
