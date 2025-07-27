@@ -97,7 +97,7 @@ fn generate_default_config() -> Config {
                 regex: Some(r"(@.*)*is this true\?".into()),
                 chance: 100,
                 min_words: 1,
-                max_words: 1,
+                max_words: 2,
                 contains_emoji: true,
                 words: vec![
                     "meow !!!".into(),
