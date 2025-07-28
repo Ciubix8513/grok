@@ -204,13 +204,19 @@ async fn main() {
                     status.id,
                     status.visibility,
                     status.mentions,
+                    status.account.bot,
                 )
             })
             .collect::<Vec<_>>();
 
         println!("Replying");
 
-        for (username, text, status_id, visibility, mentions) in names {
+        for (username, text, status_id, visibility, mentions, is_bot) in names {
+            //Skip pings made by bots
+            if is_bot {
+                continue;
+            }
+
             let mut meow = generate_response(&config, &text);
 
             //i sure love sharkey
@@ -235,6 +241,7 @@ async fn main() {
                     println!("Skipped self");
                     continue;
                 }
+
                 // https://lunar.place/@luna
                 let binding = i.url.split("https://").collect::<Vec<_>>();
 
