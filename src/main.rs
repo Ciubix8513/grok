@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::mastodon_client::{Client, NotificationType, Post};
 
 pub mod mastodon_client;
-pub mod miskey_client;
+pub mod misskey_client;
 
 fn generate_response(config: &Config, post_text: &Option<String>) -> (String, u32) {
     let mut rng = rand::rng();
@@ -174,14 +174,14 @@ async fn main() {
     let config: Config = toml::from_str(&str).unwrap();
     println!("Parsed confg file");
 
-    let miskey_client = miskey_client::Client::new(config.token.clone(), config.instance.clone());
+    let misskey_client = misskey_client::Client::new(config.token.clone(), config.instance.clone());
     let masto_client = Client::new(config.token.clone(), config.instance.clone());
 
     //Test the clients
     let _ = masto_client.me().await.unwrap();
-    let _ = miskey_client.me().await.unwrap();
+    let _ = misskey_client.me().await.unwrap();
 
-    println!("Connected to miskey and mastodon");
+    println!("Connected to misskey and mastodon");
 
     loop {
         println!("Checking notifications");
@@ -190,7 +190,7 @@ async fn main() {
         //If got some notifications immediately flush them
         if !notifications.is_empty() {
             println!("Clearing notifications");
-            miskey_client.flush_notifications().await.unwrap();
+            misskey_client.flush_notifications().await.unwrap();
         }
 
         let names = notifications
